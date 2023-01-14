@@ -1,11 +1,16 @@
 # go-vk
 
 go-vk is a Go-langauge (and Go-style) binding around the Vulkan graphichs API. Rather than just slapping a Cgo wrapper
-around everything, Vulkan's functions, structures and other types have been translated to a Go-style API.
-
-For example, "native" Vulkan returns any resources you request in pointers your program passes into Vulkan. This allows
+around everything, Vulkan's functions, structures and other types have been translated to a Go-style API. For example, "native" Vulkan returns any resources you request in pointers your program passes into Vulkan. This allows
 Vulkan to (almost) always return a VkResult success or error code from the C function call. However, in Go, we have the
 luxury of multiple return values, so this:
+
+### See Also: Vkngwrapper
+go-vk takes a different approach from [vkngwrapper](https://github.com/vkngwrapper/), by automatically generating the
+binding from vk.xml, via [vk-gen](https://github.com/vk-gen), rather than hand-writing each function. By generating the
+vast majority of the code, go-vk is easy to update for each new version of the Vulkan spec. However, it is not as simple
+to optimize for performance or to modify the public-facing API to be more Go-like.
+
 
 ```C
 VkInstance myInstance;
@@ -145,4 +150,5 @@ background when you call a Vulkan function.
 See the `[go-vk-samples](https://github.com/bbredesen/go-vk-samples) repo for a number of working Vulkan samples using
 this library. For the most part, the samples only run on Windows. 
 
-Minimal testing of `go-vk` has been done against Macs/MoltenVK. Mac/MoltenVk versions of the samples will be coming in the future. No testing has been done on Linux or other platforms.
+Minimal testing of `go-vk` has been done against Macs/MoltenVK. Mac/MoltenVk versions of the samples will be coming in
+the future. No testing has been done on Linux or other platforms.
