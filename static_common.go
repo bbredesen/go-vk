@@ -1,6 +1,7 @@
 package vk
 
 import (
+	"bytes"
 	"runtime"
 	"unsafe"
 )
@@ -46,17 +47,25 @@ type vkCommand struct {
 	fnHandle  unsafe.Pointer
 }
 
-var lazyCommands map[vkCommandKey]vkCommand
+var lazyCommands map[vkCommandKey]vkCommand = make(map[vkCommandKey]vkCommand)
 
 var dlHandle unsafe.Pointer
+
+var overrideLibName string
+
+// OverrideDefaultVulkanLibrary allows you to set a specific Vulkan library name to be used in your program. For
+// example, if you want to enable the validation layers, those layers are only available in the Vulkan SDK libary. go-vk
+// passes the name to the host operating system's library opening/search method, so you must provide a relative or
+// absolute path if your Vulkan library is not in the default search path for the platform.
+func OverrideDefaultVulkanLibrary(nameOrPath string) {
+	overrideLibName = nameOrPath
+}
 
 func execTrampoline(commandKey vkCommandKey, args ...uintptr) uintptr {
 	if dlHandle == nil {
 		var libName string
 		switch runtime.GOOS {
 		case "windows":
-			// This won't actually open the library on windows, since OpenLibrary is calling dlopen etc.
-			// Need to either wrap dlopen, use a third party library, or generate different defs by platform.
 			libName = "vulkan-1.dll"
 		case "darwin":
 			// TODO: Running on Mac/Darwin is tested only to the point of creating and
@@ -68,6 +77,11 @@ func execTrampoline(commandKey vkCommandKey, args ...uintptr) uintptr {
 		default:
 			panic("Unsupported GOOS at OpenLibrary: " + runtime.GOOS)
 		}
+
+		if overrideLibName != "" {
+			libName = overrideLibName
+		}
+
 		cstr := C.CString(libName)
 		dlHandle = C.OpenLibrary(cstr)
 		C.free(unsafe.Pointer(cstr))
@@ -103,9 +117,15 @@ func execTrampoline(commandKey vkCommandKey, args ...uintptr) uintptr {
 		result = C.Trampoline9(cmd.fnHandle, C.uintptr_t(args[0]), C.uintptr_t(args[1]), C.uintptr_t(args[2]), C.uintptr_t(args[3]), C.uintptr_t(args[4]), C.uintptr_t(args[5]), C.uintptr_t(args[6]), 0, 0)
 	case 8:
 		result = C.Trampoline9(cmd.fnHandle, C.uintptr_t(args[0]), C.uintptr_t(args[1]), C.uintptr_t(args[2]), C.uintptr_t(args[3]), C.uintptr_t(args[4]), C.uintptr_t(args[5]), C.uintptr_t(args[6]), C.uintptr_t(args[7]), 0)
+	case 9:
+		result = C.Trampoline9(cmd.fnHandle, C.uintptr_t(args[0]), C.uintptr_t(args[1]), C.uintptr_t(args[2]), C.uintptr_t(args[3]), C.uintptr_t(args[4]), C.uintptr_t(args[5]), C.uintptr_t(args[6]), C.uintptr_t(args[7]), C.uintptr_t(args[8]))
+	case 10:
+		result = C.Trampoline12(cmd.fnHandle, C.uintptr_t(args[0]), C.uintptr_t(args[1]), C.uintptr_t(args[2]), C.uintptr_t(args[3]), C.uintptr_t(args[4]), C.uintptr_t(args[5]), C.uintptr_t(args[6]), C.uintptr_t(args[7]), C.uintptr_t(args[8]), C.uintptr_t(args[9]), 0, 0)
+	case 11:
+		result = C.Trampoline12(cmd.fnHandle, C.uintptr_t(args[0]), C.uintptr_t(args[1]), C.uintptr_t(args[2]), C.uintptr_t(args[3]), C.uintptr_t(args[4]), C.uintptr_t(args[5]), C.uintptr_t(args[6]), C.uintptr_t(args[7]), C.uintptr_t(args[8]), C.uintptr_t(args[9]), C.uintptr_t(args[10]), 0)
 	default:
-		// There are no commands with 0 or 9+ arguments as of Vulkan 1.2.176
-		panic("Unexpected number of arguments passed for cmd " + cmd.protoName)
+		// There are no commands with 0 or 12+ arguments as of Vulkan 1.3.204
+		panic("Unhandled number of arguments passed for cmd " + cmd.protoName)
 	}
 
 	// Trampoline is always returning a file does not exist error in the second return value, so that error reporting is disabled
@@ -117,6 +137,11 @@ func stringToNullTermBytes(s string) *byte {
 	b := []byte(s)
 	b = append(b, 0)
 	return &b[0]
+}
+
+func nullTermBytesToString(b []byte) string {
+	n := bytes.IndexByte(b, 0)
+	return string(b[:n])
 }
 
 // func getStringFromPtr(ptr uintptr, len int) string {
