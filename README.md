@@ -1,5 +1,8 @@
 # go-vk
 
+***This package is in an alpha state right now!*** It is very likely that API details may change and it has only been
+tested on Windows. You may find bugs!
+
 go-vk is a Go-langauge (and Go-style) binding around the Vulkan graphics API. Rather than just slapping a Cgo wrapper
 around everything, Vulkan's functions, structures and other types have been translated to a Go-style API. For example, "native" Vulkan returns any resources you request in pointers your program passes into Vulkan. This allows
 Vulkan to (generally) return a VkResult success or error code from the C function call. However, in Go, we have the
@@ -7,8 +10,8 @@ luxury of multiple return values, so this:
 
 ```C
 VkInstance myInstance;
-Result res = vkCreateInstance(&instanceCI, NULL, &myInstance);
-if (res != VK_SUCCESS) {
+Result r = vkCreateInstance(&instanceCI, NULL, &myInstance);
+if (r != VK_SUCCESS) {
     // Handle an error
 }
 // Use the instance handle
@@ -16,7 +19,7 @@ if (res != VK_SUCCESS) {
 
 Becomes this:
 ```go
-r, instance := vk.CreateInstance(instanceCI, nil)
+r, instance := vk.CreateInstance(&instanceCI, nil)
 if r != vk.SUCCESS {
     panic("Could not create a Vulkan instance!") // Don't panic
 }
@@ -35,7 +38,8 @@ if (deviceCount == 0) {
     // gracefully exit, since there are no GPU devices actually available on this machine
 }
 
-VkPhysicalDevice *devices = malloc(deviceCount * sizeof(VkPhysicalDevice));
+VkPhysicalDevice devices[deviceCount];
+
 res = vkEnumeratePhysicalDevices(myInstance, &deviceCount, devices);
 if (res != VK_SUCCESS) { // Check the result again
     // handle the error
@@ -45,8 +49,6 @@ if (res != VK_SUCCESS) { // Check the result again
 for (int i = 0; i < deviceCount; i++) {
     // Check device suitability, select a device, and hold on to that handle...
 }
-// And of course you need to free after malloc to avoid a memory leak
-free(devices);
 ```
 
 Yuck. Here's the same code in Go:
@@ -58,9 +60,9 @@ if r, devices := vk.EnumeratePhysicalDevices(myInstance); r != vk.SUCCESS {
 }
 ```
 
-Oh, but there's more! Passing multiple values to a Vulkan command requires a pointer and count parameter, and sometimes
-that count parameter is embedded in another struct. If you are using
-C++, you can handle that a little easier with `std::vector`. For example, listing requested extensions at instance creation:
+But there's more! Passing multiple values to a Vulkan command requires a pointer and count parameter, and sometimes
+that count parameter is embedded in another struct. If you are working in 
+C++, you can handle that a little easier with `std::vector`. For example, specifying requested extensions at instance creation:
 
 ```C++
 std::vector<const char*> requiredExtensions = {
@@ -88,17 +90,18 @@ createInfo := vk.InstanceCreateInfo{
 }
 ```
 
+## Code Generation
 This codebase is (almost) entirely generated from a `vk.xml` file by the [vk-gen](https://github.com/bbredesen/vk-gen)
 tool. Updating go-vk for a new Vulkan version should be as easy as downloading the new vk.xml file from Khronos and
-executing vk-gen. **This repo does not get direct modifications!** Any bug fixes or new features need to be made in
+executing vk-gen. **This repository does not get direct modifications!** Any bug fixes or new features need to be made in
 `vk-gen`, which will then be used re-generate this code base.
 
-# Usage
+## Usage
 
 Ensure that your GPU supports Vulkan and that a Vulkan library is installed in your system-default library location
 (e.g., C:\windows\system32\vulkan-1.dll on Windows).
 
-`$ go get go-vk@latest`
+`$ go get github.com/bbredesen/go-vk@latest`
 
 Builds for Vulkan API versions 1.1, 1.2, 1.3 (and future releases) will be tagged as releases of go-vk with matching
 version numbers, if you want to use a specific version of the API. go-vk does not itself require the Vulkan SDK be installed,
@@ -126,7 +129,7 @@ func main() {
     }
 
     // Also notice that you don't need to set the StructureType field on your Go structs. 
-    // In fact, it doesn't even exist on the public side of the binding...it is automatically
+    // In fact, the sType field doesn't even exist on the public side of the binding...it is automatically
     // added when you pass your struct through to a command.
     appInfo := vk.ApplicationInfo{
 		ApplicationName:    "Example App",
@@ -144,11 +147,12 @@ func main() {
 	}
 
 	r, instance := vk.CreateInstance(&icInfo, nil)
-    // r is actually a vk.Result, which is itself just an int32. All enumerated types, including Result, 
-    // implement String() so you can print the value (or panic on it). Because it is 
-    // returned as a value, not a pointer, you cannot test for nil (Go-style
-    // error checking), but you are able to directly compare it to the known 
-    // error codes that Vulkan might return.
+    // r is actually a vk.Result, which is itself just an int32. All enumerated 
+    // types, including Result, implement String() so you can easily print the 
+    // value. Because it is returned as a value, not a pointer, you cannot test
+    // for nil, but you are able to directly compare it to the known error 
+    // codes that Vulkan might return. This is consistent with the Vulkan API, 
+    // but semi-inconsistent with Go-style error checking.
     if r != vk.SUCCESS {
         fmt.Printf("Failed to create Vulkan instance, error code was %s\n", r.String())
         if r == vk.ERROR_INCOMPATIBLE_DRIVER { 
@@ -165,10 +169,9 @@ func main() {
 `$ go run main.go`
 
 A number of code samples and working demos, including an implementation of the excellent tutorial program from
-[vulkan-tutorial.com](https://vulkan-tutorial.com), are available at
-[go-vk-samples](https://github.com/bbredesen/go-vk-samples)
+[vulkan-tutorial.com](https://vulkan-tutorial.com), are available at [go-vk-samples](https://github.com/bbredesen/go-vk-samples)
 
-# Library Structure
+## Library Structure
 
 The Vulkan API is defined through a set of type categories, each of which has a corresponding source file in go-vk.
 Thus, you will find all structs defined in struct.go, all commands defined in command.go, etc. Where
@@ -188,7 +191,7 @@ structs that are returned by the API, but Goify is implemented on all structs.
 Note that you should never need to directly call Vulkanize() or Goify() (with one expection, noted below). Conversions are
 automatically handled in the background when you call a Vulkan command. 
 
-## Extended Structs
+### Extended Structs
 If you use pNext to extend any structures, you will need to manually build the chain by calling Vulkanize() and setting the returned pointer in the
 base struct.
 
@@ -205,11 +208,14 @@ validationFeatures := vk.ValidationFeaturesEXT{
 instanceCI.PNext = unsafe.Pointer(validationFeatures.Vulkanize())
 ```
 
-I have some thoughts on how to directly assign extended structs with interface "flags", but that will have to be a later update.
+Leaving these as unsafe.Pointers was the simplest implementation to get the binding up and running. The next level of
+implementation is to set pNext as a Vulkanizer. I've also considered more specific interfaces flagged with empty functions,
+since the spec does indicate for each struct with what other structs it extends (e.g., VkValidationFlagsEXT has a
+structextends="VkInstanceCreateInfo" attribute).
 
 ## Mapped memory and copying data
 
-Any practical Vulkan application will need to directly copy data between the CPU and GPU...buffers for MVP matrices, texture
+Any practical Vulkan application will need to copy raw data between the CPU and GPU...loads to uniform buffers, texture
 data, etc. are exposed through vkMapMemory. Unfortunately for us, Go is designed to avoid directly
 managing and copying memory. To handle this, three specific utility functions are included with go-vk: MemCopySlice,
 MemCopyObj, and MemCopy.
@@ -229,6 +235,20 @@ They do not (and cannot) check how much space is available behind the pointer yo
 byte slices at the destination pointer and the source pointer or at the head of the input slice. It then uses Go's copy macro
 to copy the data over.
 
+Go version 1.20 includes some new functions in the unsafe package for copying slices to pointers, allowing you to "cast"
+between pointers and slices and use the `copy()` macro. The MemCopy functions above were written before the 1.20 release and do
+effectively the same thing. You are free to use whichever method you prefer.
+
+In Go 1.20+, this:
+```go
+sl := unsafe.Slice((*VertexFormat)(ptr), len(vertices))
+copy(sl, vertices)
+```
+...is functionally the same as this:
+```go
+vk.MemCopySlice(ptr, vertices)
+```
+
 ## A note on unions
 
 Vulkan includes a small number of C-union types, VkClearValue and VkClearColorValue probably being the most commonly used.
@@ -240,11 +260,11 @@ then extract the correct member for passing into the Vulkan API.
 ```go
 var ccv vk.ClearColorValue
 ccv.AsTypeFloat32(float32[4]{0.0, 0.0, 0.0, 1.0})
-// The spec names this field float32, which is a reserved word in Go. go-vk 
+// The spec names this field float32, which is a reserved word in Go. vk-gen 
 // renames these fields to TypeFloat32, TypeInt32, etc. to avoid any conflicts.
 ```
 
-# Examples
+## Examples
 
 See the `[go-vk-samples](https://github.com/bbredesen/go-vk-samples) repo for a number of working Vulkan samples using
 this library. The samples currently only run on Windows.
@@ -252,19 +272,25 @@ this library. The samples currently only run on Windows.
 Minimal testing of `go-vk` has been done against Mac/MoltenVK. Mac versions of the samples will be coming in
 the future. No testing has been done (yet) on Linux or other platforms.
 
-# See Also: vkngwrapper
+### See Also: vkngwrapper
 go-vk takes a different approach from [vkngwrapper](https://github.com/vkngwrapper/), by automatically generating the
-binding from vk.xml, via [vk-gen](https://github.com/vk-gen), rather than hand-writing each function. By generating the
-vast majority of the code, go-vk is easy to update for each new version of the Vulkan spec. However, it is not as simple
+binding via [vk-gen](https://github.com/vk-gen), rather than hand-writing each function. By generating the
+vast majority of the code, go-vk is (or should be) easy to update for each new version of the Vulkan spec. However, it is not as simple
 to optimize for performance or to modify the public-facing API to be more Go-like. 
 
 There are also some opinonated design differences between the two bindings. For example, vkngwrapper uses dispatchable
 handles (e.g., VkInstance and VkDevice) as receivers for commands on those handles. There is nothing wrong with this
-approach and it aligns with the design of the official C++ binding. go-vk, on the other hand, takes in those handles as
+approach and it aligns with the design of Khronos' official C++ binding. go-vk, on the other hand, takes in those handles as
 the first parameter of the command, aligning more with the C API.
 
-# Known Issues
+## Known Issues
 
 * VkAccelerationStructureMatrixMotionInstanceNV - embedded bit fields in uint32_t are not handled at all...this
   structure will not behave as intended and will likely cause a crash if used.
-
+* H.264 and H.265 commands and types are almost certainly broken. There is no structured specification file similar to
+  vk.xml (that I've found) for the video functions and required types. Instead, the types are directly included through
+  vk.xml as C headers. As a placeholder, all of these types are defined as int32 through exceptions.json. These types
+  may end up hard-coded.
+* vkGetPipelinePropertiesEXT - as of 1.3.240, this is the single command that uses VkBaseOutStructure as a parameter type.
+  BaseOutStructure (and BaseInStrucutre) are set to be ignored in the binding because they are self-referential and
+  cause infinite recursion in Resolve(). For the moment, I'm manually updating that parameter to struct{}.
