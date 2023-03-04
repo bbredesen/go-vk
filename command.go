@@ -6748,12 +6748,12 @@ func GetPhysicalDeviceFeatures(physicalDevice PhysicalDevice) (features Physical
 // GetPhysicalDeviceFeatures2: See https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/vkGetPhysicalDeviceFeatures2.html
 func GetPhysicalDeviceFeatures2(physicalDevice PhysicalDevice) (features PhysicalDeviceFeatures2) {
 	// features is a binding-allocated single return value and will be populated by Vulkan, but requiring translation
-	var pFeatures _vkPhysicalDeviceFeatures2
-	ptr_pFeatures := &pFeatures
+	// var pFeatures _vkPhysicalDeviceFeatures2
+	ptr_pFeatures := features.Vulkanize()
 
 	execTrampoline(keyvkGetPhysicalDeviceFeatures2, uintptr(physicalDevice), uintptr(unsafe.Pointer(ptr_pFeatures)))
 
-	features = *(pFeatures.Goify())
+	features = *(ptr_pFeatures.Goify())
 	return
 }
 
