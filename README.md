@@ -266,22 +266,11 @@ ccv.AsTypeFloat32(float32[4]{0.0, 0.0, 0.0, 1.0})
 
 ## Examples
 
-See the `[go-vk-samples](https://github.com/bbredesen/go-vk-samples) repo for a number of working Vulkan samples using
+See the [go-vk-samples](https://github.com/bbredesen/go-vk-samples) repo for a number of working Vulkan samples using
 this library. The samples currently only run on Windows.
 
 Minimal testing of `go-vk` has been done against Mac/MoltenVK. Mac versions of the samples will be coming in
 the future. No testing has been done (yet) on Linux or other platforms.
-
-### See Also: vkngwrapper
-go-vk takes a different approach from [vkngwrapper](https://github.com/vkngwrapper/), by automatically generating the
-binding via [vk-gen](https://github.com/vk-gen), rather than hand-writing each function. By generating the
-vast majority of the code, go-vk is (or should be) easy to update for each new version of the Vulkan spec. However, it is not as simple
-to optimize for performance or to modify the public-facing API to be more Go-like. 
-
-There are also some opinonated design differences between the two bindings. For example, vkngwrapper uses dispatchable
-handles (e.g., VkInstance and VkDevice) as receivers for commands on those handles. There is nothing wrong with this
-approach and it aligns with the design of Khronos' official C++ binding. go-vk, on the other hand, takes in those handles as
-the first parameter of the command, aligning more with the C API.
 
 ## Known Issues
 
