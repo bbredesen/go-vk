@@ -283,3 +283,6 @@ the future. No testing has been done (yet) on Linux or other platforms.
 * vkGetPipelinePropertiesEXT - as of 1.3.240, this is the single command that uses VkBaseOutStructure as a parameter type.
   BaseOutStructure (and BaseInStrucutre) are set to be ignored in the binding because they are self-referential and
   cause infinite recursion in Resolve(). For the moment, I'm manually updating that parameter to struct{}.
+* in/out structures (e.g., VkPhysicalDeviceFeatures2) need to be Vulkanized before passing in, not just allocated on the
+  Vulkan side. Vulkan is silently failing (i.e. no validation layers report, no error code) when structure type is not
+  set. Manual update to call Vulkanize on the named return parameter, and then Goify before return.

@@ -36,7 +36,7 @@ func max(nums ...int) int {
 // TODO: Enhance this method to provide error messages from the OS (?)
 // TODO: A way for commands to indicate if the Result code is an error for that command, or an unexpected return value?
 func (r Result) Error() string {
-	return r.String()
+	return "" // r.String()
 }
 
 type vkCommandKey int
