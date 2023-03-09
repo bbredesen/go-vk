@@ -33,7 +33,6 @@ func max(nums ...int) int {
 }
 
 // Error implements the error interface
-// TODO: Enhance this method to provide error messages from the OS (?)
 // TODO: A way for commands to indicate if the Result code is an error for that command, or an unexpected return value?
 func (r Result) Error() string {
 	return r.String()
@@ -98,7 +97,6 @@ func execTrampoline(commandKey vkCommandKey, args ...uintptr) uintptr {
 	}
 
 	var result C.uintptr_t
-	// var err error
 
 	switch cmd.argCount {
 	case 1:
@@ -143,24 +141,3 @@ func nullTermBytesToString(b []byte) string {
 	n := bytes.IndexByte(b, 0)
 	return string(b[:n])
 }
-
-// func getStringFromPtr(ptr uintptr, len int) string {
-// 	var sl = struct {
-// 		addr uintptr
-// 		len  int
-// 		cap  int
-// 	}{ptr, len, len}
-// 	return string(*(*[]byte)(unsafe.Pointer(&sl)))
-// }
-// func nullTermBytesToString(b *byte) string {
-// 	rawPtr := uintptr(unsafe.Pointer(b))
-// 	strLen := uintptr(0)
-
-// 	var nextB byte
-// 	nextB = *(*byte)(unsafe.Pointer(rawPtr + strLen))
-
-// 	for nextB = *(*byte)(unsafe.Pointer(rawPtr)); nextB != 0; strLen++ {
-// 	}
-
-// 	return getStringFromPtr(rawPtr, int(strLen))
-// }

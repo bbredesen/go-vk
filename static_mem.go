@@ -32,7 +32,7 @@ intended for use with mapped memory ranges. Note that the destination is passed 
 cannot determine if you have allocated enough memory at that location. You are responsible for requesting enough memory
 from Vulkan! Unexpected behavior or crashes are very possible if this function is misused or abused.
 
-If you pass a slice to this function, the slice header will be copied, not the contents! See also MemCopySlice.
+NOTE: If you pass a slice to this function, the slice header will be copied, not the contents! Use [MemCopySlice] instead.
 */
 func MemCopyObj[T any](dest unsafe.Pointer, src *T) {
 	bytes := int(unsafe.Sizeof(*src))
@@ -44,7 +44,7 @@ func MemCopyObj[T any](dest unsafe.Pointer, src *T) {
 }
 
 /* MemCopy is the closest to C's memcpy...you provide two pointers and a number of bytes to copy, and it will move the
-data around. Using MemCopySlice or MemCopyObj instead is highly recommended. There are no guardrails on this function!
+data around. Using [MemCopySlice] or [MemCopyObj] instead is highly recommended. There are no guardrails on this function!
 */
 func MemCopy(dest, src unsafe.Pointer, len int) {
 	sl_src := *(*[]byte)(unsafe.Pointer(&sl{uintptr(src), len, len}))

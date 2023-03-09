@@ -1,5 +1,8 @@
 package vk
 
+// The functions in this file are Go versions of C preprocessor macros from vk.xml. Each function here is associated with its
+// Vulkan name through exceptions.json
+
 func deprecatedMakeVersion(major, minor, patch uint32) uint32 {
 	return major<<22 | minor<<12 | patch
 }

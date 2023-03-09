@@ -229,7 +229,7 @@ than 1.18 (and hence do not have access to generics). In that case you could ven
 delete the two generic functions.
 
 **There are no guardrails on any of these functions! You, the developer, are repsonbile for allocating enough memory
-from Vulkan at the destination before calling them.** 
+at the destination before calling them.** 
 
 They do not (and cannot) check how much space is available behind the pointer you give them. Under the hood, they create "fake"
 byte slices at the destination pointer and the source pointer or at the head of the input slice. It then uses Go's copy macro
@@ -269,9 +269,6 @@ ccv.AsTypeFloat32(float32[4]{0.0, 0.0, 0.0, 1.0})
 See the [go-vk-samples](https://github.com/bbredesen/go-vk-samples) repo for a number of working Vulkan samples using
 this library. The samples currently only run on Windows.
 
-Minimal testing of `go-vk` has been done against Mac/MoltenVK. Mac versions of the samples will be coming in
-the future. No testing has been done (yet) on Linux or other platforms.
-
 ## Known Issues
 
 * VkAccelerationStructureMatrixMotionInstanceNV - embedded bit fields in uint32_t are not handled at all...this
@@ -280,6 +277,3 @@ the future. No testing has been done (yet) on Linux or other platforms.
   vk.xml (that I've found) for the video functions and required types. Instead, the types are directly included through
   vk.xml as C headers. As a placeholder, all of these types are defined as int32 through exceptions.json. These types
   may end up hard-coded.
-* vkGetPipelinePropertiesEXT - as of 1.3.240, this is the single command that uses VkBaseOutStructure as a parameter type.
-  BaseOutStructure (and BaseInStrucutre) are set to be ignored in the binding because they are self-referential and
-  cause infinite recursion in Resolve(). For the moment, I'm manually updating that parameter to struct{}.
