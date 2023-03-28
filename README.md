@@ -1,10 +1,14 @@
-# go-vk
+# go-vk - Vulkan 1.2.203 supporting Windows and Mac
 
-***This package is in an alpha state right now!*** It is very likely that API details may change and it has only been
-tested on Windows. You may find bugs!
+***This package is in a beta state right now!*** It has been tested on Windows and MacOS. Please report any bugs you find!
+
+***This version of go-vk contains an (intended) API-breaking change.*** All functions used to return Result as the first
+return value and SUCCESS was equal to zero (both aligning with the C API). Result codes now implement the error interface and are always the final
+return value. SUCCESS is defined as `nil`, not zero.
 
 go-vk is a Go-langauge (and Go-style) binding around the Vulkan graphics API. Rather than just slapping a Cgo wrapper
-around everything, Vulkan's functions, structures and other types have been translated to a Go-style API. For example, "native" Vulkan returns any resources you request in pointers your program passes into Vulkan. This allows
+around everything, Vulkan's functions, structures and other types have been translated to a Go-style API. For example, 
+"native" Vulkan returns any resources you request in pointers your program passes into Vulkan. This allows
 Vulkan to (generally) return a VkResult success or error code from the C function call. However, in Go, we have the
 luxury of multiple return values, so this:
 
@@ -19,8 +23,8 @@ if (r != VK_SUCCESS) {
 
 Becomes this:
 ```go
-r, instance := vk.CreateInstance(&instanceCI, nil)
-if r != vk.SUCCESS {
+instance, err := vk.CreateInstance(&instanceCI, nil)
+if err != nil {
     panic("Could not create a Vulkan instance!") // Don't panic
 }
 ```
@@ -53,7 +57,7 @@ for (int i = 0; i < deviceCount; i++) {
 
 Yuck. Here's the same code in Go:
 ```go
-if r, devices := vk.EnumeratePhysicalDevices(myInstance); r != vk.SUCCESS {
+if devices, err := vk.EnumeratePhysicalDevices(myInstance); err != nil {
     // handle the error
 } else {
     // devices is a slice of vk.PhysicalDevice. Nice!
@@ -61,8 +65,8 @@ if r, devices := vk.EnumeratePhysicalDevices(myInstance); r != vk.SUCCESS {
 ```
 
 But there's more! Passing multiple values to a Vulkan command requires a pointer and count parameter, and sometimes
-that count parameter is embedded in another struct. If you are working in 
-C++, you can handle that a little easier with `std::vector`. For example, specifying requested extensions at instance creation:
+that count parameter is embedded in another struct. You can make life a little easier with C++'s `std::vector`. 
+For example, specifying requested extensions at instance creation:
 
 ```C++
 std::vector<const char*> requiredExtensions = {
@@ -85,7 +89,8 @@ versus:
 requiredExtensions := []string{vk.KHR_SWAPCHAIN_EXTENSION_NAME, vk.KHR_SURFACE_EXTENSION_NAME}
 
 createInfo := vk.InstanceCreateInfo{
-    // No length member, no pointer required, just assign the slice, or even instantiate it inline
+    // No structure type, no length member, and no pointer required.
+    // Just assign the slice, or even instantiate it inline
     EnabledExtensionNames: requiredExtensions,
 }
 ```
@@ -99,7 +104,8 @@ executing vk-gen. **This repository does not get direct modifications!** Any bug
 ## Usage
 
 Ensure that your GPU supports Vulkan and that a Vulkan library is installed in your system-default library location
-(e.g., C:\windows\system32\vulkan-1.dll on Windows).
+(e.g., C:\windows\system32\vulkan-1.dll on Windows). This package uses Cgo to call Vulkan, so it needs to be enabled in 
+your Go settings.
 
 `$ go get github.com/bbredesen/go-vk@latest`
 
@@ -117,7 +123,11 @@ import (
 // Notice that you don't need to alias the import, it is already bound to the "vk" namespace
 
 func main() {
-    if r, encodedVersion := vk.EnumerateInstanceVersion(); r != vk.SUCCESS {
+    if encodedVersion, err := vk.EnumerateInstanceVersion(); err != nil {
+        // Returned errors are vk.Results. You can directly compare err those 
+        // predefined values to determine which error occured.
+        // The string returned by Error() is the name of the code. For example,
+        // vk.ERROR_OUT_OF_DATE_KHR.Error() == "ERROR_OUT_OF_DATE_KHR"
         fmt.Printf("EnumerateInstanceVersion failed! Error code was %s\n", err.Error())
         os.Exit(1)
     } else {
@@ -142,20 +152,15 @@ func main() {
 		ApplicationInfo:       appInfo,
         // Extension names are built into the binding as const strings.
 		EnabledExtensionNames: []string{vk.KHR_SURFACE_EXTENSION_NAME, vk.KHR_WIN32_SURFACE_EXTENSION_NAME},
-        // Layer names are not though...layer names are not present in the API spec document.
+        // Layer names are not built in, unfortunately...layers are not part of the core API spec and names are not present in vk.xml
 		EnabledLayerNames:     []string{"VK_LAYER_KHRONOS_validation"},
 	}
 
-	r, instance := vk.CreateInstance(&icInfo, nil)
-    // r is actually a vk.Result, which is itself just an int32. All enumerated 
-    // types, including Result, implement String() so you can easily print the 
-    // value. Because it is returned as a value, not a pointer, you cannot test
-    // for nil, but you are able to directly compare it to the known error 
-    // codes that Vulkan might return. This is consistent with the Vulkan API, 
-    // but semi-inconsistent with Go-style error checking.
-    if r != vk.SUCCESS {
-        fmt.Printf("Failed to create Vulkan instance, error code was %s\n", r.String())
-        if r == vk.ERROR_INCOMPATIBLE_DRIVER { 
+	instance, err := vk.CreateInstance(&icInfo, nil)
+    // vk.SUCCESS is defined as nil, so you can also check for an error like this if preferred.
+    if err != vk.SUCCESS {
+        fmt.Printf("Failed to create Vulkan instance, error code was %s\n", err.Error())
+        if err == vk.ERROR_INCOMPATIBLE_DRIVER { 
             /* ... */
         }
     }
@@ -209,7 +214,8 @@ instanceCI.PNext = unsafe.Pointer(validationFeatures.Vulkanize())
 ```
 
 Leaving these as unsafe.Pointers was the simplest implementation to get the binding up and running. The next level of
-implementation is to set pNext as a Vulkanizer. I've also considered more specific interfaces flagged with empty functions,
+implementation is to define pNext as a Vulkanizer interface type, and have Vulkanize build the chain. I've also
+considered more specific interfaces flagged with empty functions,
 since the spec does indicate for each struct with what other structs it extends (e.g., VkValidationFlagsEXT has a
 structextends="VkInstanceCreateInfo" attribute).
 
@@ -241,11 +247,15 @@ effectively the same thing. You are free to use whichever method you prefer.
 
 In Go 1.20+, this:
 ```go
+ptr, err := vk.MapMemory(/* ... */)
+
 sl := unsafe.Slice((*VertexFormat)(ptr), len(vertices))
 copy(sl, vertices)
 ```
 ...is functionally the same as this:
 ```go
+ptr, err := vk.MapMemory(/* ... */)
+
 vk.MemCopySlice(ptr, vertices)
 ```
 
@@ -267,13 +277,12 @@ ccv.AsTypeFloat32(float32[4]{0.0, 0.0, 0.0, 1.0})
 ## Examples
 
 See the [go-vk-samples](https://github.com/bbredesen/go-vk-samples) repo for a number of working Vulkan samples using
-this library. The samples currently only run on Windows.
+this library. The samples currently run on Windows and Mac.
 
 ## Known Issues
 
 * VkAccelerationStructureMatrixMotionInstanceNV - embedded bit fields in uint32_t are not handled at all...this
   structure will not behave as intended and will likely cause a crash if used.
-* H.264 and H.265 commands and types are almost certainly broken. There is no structured specification file similar to
-  vk.xml (that I've found) for the video functions and required types. Instead, the types are directly included through
-  vk.xml as C headers. As a placeholder, all of these types are defined as int32 through exceptions.json. These types
-  may end up hard-coded.
+* H.264 and H.265 commands and types are almost certainly broken. Vulkan does provide a separate XML file in the vk.xml format for those
+  types, but reading that file has not yet been implemented in vk-gen. As a placeholder, all of these types are defined
+  as int32 through exceptions.json.
