@@ -1,4 +1,4 @@
-# go-vk - Vulkan 1.3.242 supporting Windows and Mac
+# go-vk - Vulkan 1.3 supporting Windows and Mac
 
 ***This package is in a beta state right now!*** It has been tested on Windows and Mac. Please report any bugs you find!
 
