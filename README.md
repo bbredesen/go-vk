@@ -1,10 +1,6 @@
-# go-vk - Vulkan 1.2.203 supporting Windows and Mac
+# go-vk - Vulkan 1.3.242 supporting Windows and Mac
 
-***This package is in a beta state right now!*** It has been tested on Windows and MacOS. Please report any bugs you find!
-
-***This version of go-vk contains an (intended) API-breaking change.*** All functions used to return Result as the first
-return value and SUCCESS was equal to zero (both aligning with the C API). Result codes now implement the error interface and are always the final
-return value. SUCCESS is defined as `nil`, not zero.
+***This package is in a beta state right now!*** It has been tested on Windows and Mac. Please report any bugs you find!
 
 go-vk is a Go-langauge (and Go-style) binding around the Vulkan graphics API. Rather than just slapping a Cgo wrapper
 around everything, Vulkan's functions, structures and other types have been translated to a Go-style API. For example, 
@@ -145,7 +141,7 @@ func main() {
 		ApplicationName:    "Example App",
 		ApplicationVersion: vk.MAKE_VERSION(1, 0, 0),
 		EngineVersion:      vk.MAKE_VERSION(1, 0, 0),
-		ApiVersion:         vk.MAKE_VERSION(1, 0, 0),
+		ApiVersion:         vk.MAKE_VERSION(1, 3, 0),
 	}
 
 	icInfo := vk.InstanceCreateInfo{
@@ -286,3 +282,6 @@ this library. The samples currently run on Windows and Mac.
 * H.264 and H.265 commands and types are almost certainly broken. Vulkan does provide a separate XML file in the vk.xml format for those
   types, but reading that file has not yet been implemented in vk-gen. As a placeholder, all of these types are defined
   as int32 through exceptions.json.
+* The union type VkPipelineExecutableStatisticValueKHR is returned from Vulkan through VkPipelineExecutableStatisticKHR.
+  Returned unions are not supported and there is no Goify() function associated. VkPipelineExecutableStatisticKHR is
+  returned to the developer without the Value member populated.
