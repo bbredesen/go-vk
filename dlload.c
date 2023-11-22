@@ -49,8 +49,6 @@ void CloseLibrary(void *lib_handle) {
 
 #endif
 
-
-typedef uint32_t (*vkEnumerateInstanceVersion_func)(uint32_t*);
 typedef size_t (*vkGeneric_func3)(uintptr_t, uintptr_t, uintptr_t);
 typedef size_t (*vkGeneric_func6)(uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 typedef size_t (*vkGeneric_func9)(uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);

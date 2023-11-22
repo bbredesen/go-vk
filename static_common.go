@@ -68,8 +68,9 @@ func execTrampoline(cmd *vkCommand, args ...uintptr) uintptr {
 			// destroying a Vulkan instance.
 			libName = "libMoltenVK.dylib"
 		case "linux":
-			// TODO: Opening/running on linux is completely untested.
-			libName = "libvulkan.1.dylib"
+			// TODO: Running on Linux is tested only to the point of creating and
+			// destroying a Vulkan instance.
+			libName = "libvulkan.so"
 		default:
 			panic("Unsupported GOOS at OpenLibrary: " + runtime.GOOS)
 		}
