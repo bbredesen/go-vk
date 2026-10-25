@@ -1,20 +1,18 @@
-# go-vk - Vulkan 1.2.203 supporting Windows and Mac
+# go-vk - Vulkan 1.0 through 1.4
 
-***This package is in a beta state right now!*** It has been tested on Windows and MacOS. Please report any bugs you find!
+***This package is in a beta state right now!*** It has been functionally tested on Windows and on Mac using MoltenVK. The Linux platform 
+extensions for X and Wayland have been included in the most recent tagged versions, but haven't been tested beyond basic CI on GitHub's `ubuntu-latest`. 
+Please report any bugs you find!
 
-***This version of go-vk contains an (intended) API-breaking change.*** All functions used to return Result as the first
-return value and SUCCESS was equal to zero (both aligning with the C API). Result codes now implement the error interface and are always the final
-return value. SUCCESS is defined as `nil`, not zero.
-
-go-vk is a Go-langauge (and Go-style) binding around the Vulkan graphics API. Rather than just slapping a Cgo wrapper
+go-vk is a Go-language (and Go-style) binding around the Vulkan graphics API. Rather than just slapping a Cgo wrapper
 around everything, Vulkan's functions, structures and other types have been translated to a Go-style API. For example, 
-"native" Vulkan returns any resources you request in pointers your program passes into Vulkan. This allows
+"native" Vulkan returns any resources you request in pointers your program allocates and passes into Vulkan. This allows
 Vulkan to (generally) return a VkResult success or error code from the C function call. However, in Go, we have the
 luxury of multiple return values, so this:
 
 ```C
 VkInstance myInstance;
-Result r = vkCreateInstance(&instanceCI, NULL, &myInstance);
+VkResult r = vkCreateInstance(&instanceCI, NULL, &myInstance);
 if (r != VK_SUCCESS) {
     // Handle an error
 }
@@ -33,13 +31,13 @@ Likewise, the "Enumerate" group of functions returning an array of values in C r
 allocation, another function call, and another error check:
 ```C
 int deviceCount;
-Result res = vkEnumeratePhysicalDevices(myInstance, &deviceCount, NULL);
+VkResult res = vkEnumeratePhysicalDevices(myInstance, &deviceCount, NULL);
 if (res != VK_SUCCESS) { // Check the result, of course
     // handle the error
 }
 // ...and you really should also check that deviceCount > 0
 if (deviceCount == 0) {
-    // gracefully exit, since there are no GPU devices actually available on this machine
+    // gracefully exit, since there are no GPU devices available on this machine
 }
 
 VkPhysicalDevice devices[deviceCount];
@@ -78,9 +76,9 @@ createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 // Other create info props...
 
 // set the size
-createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
 // extract the data pointer from the vector
-createInfo.ppEnabledExtensionNames = extensions.data();
+createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 ```
 
 versus:
@@ -91,41 +89,60 @@ requiredExtensions := []string{vk.KHR_SWAPCHAIN_EXTENSION_NAME, vk.KHR_SURFACE_E
 createInfo := vk.InstanceCreateInfo{
     // No structure type, no length member, and no pointer required.
     // Just assign the slice, or even instantiate it inline
-    EnabledExtensionNames: requiredExtensions,
+    PpEnabledExtensionNames: requiredExtensions,
 }
 ```
 
 ## Code Generation
 This codebase is (almost) entirely generated from a `vk.xml` file by the [vk-gen](https://github.com/bbredesen/vk-gen)
-tool. Updating go-vk for a new Vulkan version should be as easy as downloading the new vk.xml file from Khronos and
+tool. Updating go-vk for a new Vulkan revision not yet posted here should be as easy as downloading the new vk.xml file from Khronos and
 executing vk-gen. **This repository does not get direct modifications!** Any bug fixes or new features need to be made in
-`vk-gen`, which will then be used re-generate this code base.
+vk-gen, which will then be used re-generate this code base.
 
-## Usage
-
-Ensure that your GPU supports Vulkan and that a Vulkan library is installed in your system-default library location
-(e.g., C:\windows\system32\vulkan-1.dll on Windows). This package uses Cgo to call Vulkan, so it needs to be enabled in 
-your Go settings.
-
-`$ go get github.com/bbredesen/go-vk@latest`
-
-Builds for Vulkan API versions 1.1, 1.2, 1.3 (and future releases) will be tagged as releases of go-vk with matching
+Builds for Vulkan API versions 1.0 through 1.4 (and future releases) will be tagged as releases of go-vk with matching
 version numbers, if you want to use a specific version of the API. go-vk does not itself require the Vulkan SDK be installed,
 as it reads symbols from the system-default Vulkan library at runtime. However, you will need the SDK installed to use
-validation layers, shader compilers, etc. during development.
+validation layers, shader compilers, etc. during development. The @latest selector will be the most recent passing, current Vulkan release listed in the table below,
+or you can e.g. `$ go get github.com/bbredesen/go-vk@v1.3` if you only want to target the final 1.3 registry version (Vulkan 1.3.302). Your go.mod file will
+pin the specific release you selected but `go get -u` will upgrade to @latest...to upgrade an older tagged version you have to `go get github.com/bbredesen/go-vk@v1.3` again.
+
+Releases are tagged with both the Vulkan release and the vk-gen version used to generate the package. For example, `v1.3.302-0.4.0`
+represents the Vulkan API version 1.3.302 generated by vk-gen version 0.4.0. Terminal revisions of each Vulkan minor release will be
+maintained here, but will not be regenerated and tagged with updated vk-gen versions unless the output from vk-gen has actually changed 
+for that Vulkan version.
+
+| vk.xml version | Latest go-vk | Notes |
+| --- | --- | --- |
+| 1.0.69-core | v1.0.69-0.4.0 | Final 1.0 release |
+| 1.1.130 | v1.1.130-0.4.0 | Final 1.1 release |
+| 1.2.203 | v1.2.203-0.4.0 | Final 1.2 release |
+| 1.3.302 | v1.3.302-0.4.0 | Final 1.3 release |
+| 1.4.366 | v1.4.366-0.4.0 | Current as of Oct 23, 2026 |
+
+## Usage Example
+
+Ensure that your GPU supports Vulkan and that a Vulkan library is available somewhere on your system. go-vk will look 
+for Vulkan in your system-default library location (e.g., C:\windows\system32\vulkan-1.dll on Windows) or you can 
+point it at a specific file by calling `OverrideDefaultVulkanLibrary` any time before calling your first 
+Vulkan command. This package uses Cgo to call Vulkan, so it needs to be enabled in your Go settings.
+
+`$ go get github.com/bbredesen/go-vk@latest`
 
 ```go main.go
 package main
 
 import (
+    "fmt"
+    "os"
     "github.com/bbredesen/go-vk"
 )
 // Notice that you don't need to alias the import, it is already bound to the "vk" namespace
 
 func main() {
+    // EnumerateInstanceVersion appeared in Vulkan 1.1, example will not run on the v1.0 core.
     if encodedVersion, err := vk.EnumerateInstanceVersion(); err != nil {
-        // Returned errors are vk.Results. You can directly compare err those 
-        // predefined values to determine which error occured.
+        // Returned errors are vk.Results. You can directly compare err to those 
+        // predefined values to determine which error occurred.
         // The string returned by Error() is the name of the code. For example,
         // vk.ERROR_OUT_OF_DATE_KHR.Error() == "ERROR_OUT_OF_DATE_KHR"
         fmt.Printf("EnumerateInstanceVersion failed! Error code was %s\n", err.Error())
@@ -142,18 +159,18 @@ func main() {
     // In fact, the sType field doesn't even exist on the public side of the binding...it is automatically
     // added when you pass your struct through to a command.
     appInfo := vk.ApplicationInfo{
-		ApplicationName:    "Example App",
+		PApplicationName:    "Example App",
 		ApplicationVersion: vk.MAKE_VERSION(1, 0, 0),
 		EngineVersion:      vk.MAKE_VERSION(1, 0, 0),
-		ApiVersion:         vk.MAKE_VERSION(1, 0, 0),
+		ApiVersion:         vk.MAKE_VERSION(1, 3, 0),
 	}
 
 	icInfo := vk.InstanceCreateInfo{
-		ApplicationInfo:       appInfo,
+		PApplicationInfo:       &appInfo,
         // Extension names are built into the binding as const strings.
-		EnabledExtensionNames: []string{vk.KHR_SURFACE_EXTENSION_NAME, vk.KHR_WIN32_SURFACE_EXTENSION_NAME},
+		PpEnabledExtensionNames: []string{vk.KHR_SURFACE_EXTENSION_NAME, vk.KHR_WIN32_SURFACE_EXTENSION_NAME},
         // Layer names are not built in, unfortunately...layers are not part of the core API spec and names are not present in vk.xml
-		EnabledLayerNames:     []string{"VK_LAYER_KHRONOS_validation"},
+		PpEnabledLayerNames:     []string{"VK_LAYER_KHRONOS_validation"},
 	}
 
 	instance, err := vk.CreateInstance(&icInfo, nil)
@@ -173,27 +190,32 @@ func main() {
 
 `$ go run main.go`
 
-A number of code samples and working demos, including an implementation of the excellent tutorial program from
+A number of code samples and working demos for Windows and Mac/MoltenVK, including an implementation of the excellent tutorial program from
 [vulkan-tutorial.com](https://vulkan-tutorial.com), are available at [go-vk-samples](https://github.com/bbredesen/go-vk-samples)
 
 ## Library Structure
 
 The Vulkan API is defined through a set of type categories, each of which has a corresponding source file in go-vk.
 Thus, you will find all structs defined in struct.go, all commands defined in command.go, etc. Where
-platform-specific types are neccessary, they are defined in separate files with appropriate go:build tags. The
-`stringify` tool has also been run against enumerated types, so if `result == vk.NOT_READY` then `result.String() == "NOT_READY"`.
+platform-specific types are necessary, they are defined in separate files named like `bitmask_win32.go` with appropriate go:build tags. The
+`stringer` tool has also been run against enumerated types, so if `result == vk.NOT_READY` then `result.String() == "NOT_READY"`.
 
 The underlying Vulkan implementation is actually accessed through a small Cgo wrapper, found in static_common.go; go-vk
-opens the shared library and lazy-loads any requested symbols. All of the public-facing structs in Go are translated to
+opens the shared library and resolves symbols through the loader's vkGetInstanceProcAddr when the command is first called. 
+Instances you create and destroy are tracked in the background and the loader will resolve against the correct instance. 
+Attempting to call an instance command before creating or after destroying the instance, or an extension command without enabling
+the extension, will cause a runtime panic.
+
+All of the public-facing structs in Go are translated to
 the appropriate memory layout before being passed through to the API, via each struct's Vulkanize() function.
 Vulkanize()'s primary purpose is to convert slices to a length and pointer field in the internal struct, Go strings to
 null-terminated byte pointers, and to recursively Vulkanize any non-primitive members.
 
 The structs also have a Goify function to do the reverse: create slices
-from a length and pointer field and create strings from null-terminated byte arrays. In practice, this is only used for
-structs that are returned by the API, but Goify is implemented on all structs.
+from a length and pointer field and create strings from null-terminated byte arrays. Goify is implemented on all structs, but in practice it is only used for
+structs that are returned by the API.
 
-Note that you should never need to directly call Vulkanize() or Goify() (with one expection, noted below). Conversions are
+Note that you should never need to directly call Vulkanize() or Goify() (with one exception, noted below). Conversions are
 automatically handled in the background when you call a Vulkan command. 
 
 ### Extended Structs
@@ -206,7 +228,7 @@ instanceCI := vk.InstanceCreateInfo{
 }
 
 validationFeatures := vk.ValidationFeaturesEXT{
-    PEnabledValidationFeatures: []vk.ValidationFeatureEnableEXT{vk.VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT}
+    PEnabledValidationFeatures: []vk.ValidationFeatureEnableEXT{vk.VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT},
     // ...
 }
 
@@ -226,30 +248,28 @@ data, etc. are exposed through vkMapMemory. Unfortunately for us, Go is designed
 managing and copying memory. To handle this, three specific utility functions are included with go-vk: MemCopySlice,
 MemCopyObj, and MemCopy.
 
-The first two two functions use generics to copy your data byte-for-byte to Vulkan in an abstract way, so Go 1.18 or higher is a
-requirement.
+The first two functions use generics to copy your data byte-for-byte to Vulkan in an abstract way. 
 
-The MemCopy function that accepts two unsafe.Pointers and a number of bytes to copy, but it is recommended
-that you use MemCopyObj or MemCopySlice instead. It is really only offered in case you need to target a Go version less
-than 1.18 (and hence do not have access to generics). In that case you could vendor a copy of go-vk in your project and
-delete the two generic functions.
+The MemCopy function accepts two unsafe.Pointers and a number of bytes to copy, but it is recommended
+that you use MemCopyObj or MemCopySlice instead. The general MemCopy function 
+was initially created on Go 1.17, pre-generics, but remains available if needed.
 
-**There are no guardrails on any of these functions! You, the developer, are repsonbile for allocating enough memory
+**There are no guardrails on any of these functions! You, the developer, are responsible for allocating enough memory
 at the destination before calling them.** 
 
 They do not (and cannot) check how much space is available behind the pointer you give them. Under the hood, they create "fake"
-byte slices at the destination pointer and the source pointer or at the head of the input slice. It then uses Go's copy macro
+byte slices at the destination pointer and the source pointer or at the head of the input slice. It then uses Go's `copy`
 to copy the data over.
 
-Go version 1.20 includes some new functions in the unsafe package for copying slices to pointers, allowing you to "cast"
-between pointers and slices and use the `copy()` macro. The MemCopy functions above were written before the 1.20 release and do
-effectively the same thing. You are free to use whichever method you prefer.
+The unsafe package includes functions for copying between slices and pointers, allowing you to "cast"
+between pointers and slices and use the `copy()` builtin function. The MemCopy functions above work
+by manipulating the slice header struct, but they create the same result. You are free to use whichever method you prefer.
 
-In Go 1.20+, this:
+In other words, this:
 ```go
 ptr, err := vk.MapMemory(/* ... */)
 
-sl := unsafe.Slice((*VertexFormat)(ptr), len(vertices))
+sl := unsafe.Slice((*vk.VertexFormat)(ptr), len(vertices))
 copy(sl, vertices)
 ```
 ...is functionally the same as this:
@@ -269,10 +289,39 @@ then extract the correct member for passing into the Vulkan API.
 
 ```go
 var ccv vk.ClearColorValue
-ccv.AsTypeFloat32(float32[4]{0.0, 0.0, 0.0, 1.0})
+ccv.AsTypeFloat32([4]float32{0.0, 0.0, 0.0, 1.0})
 // The spec names this field float32, which is a reserved word in Go. vk-gen 
 // renames these fields to TypeFloat32, TypeInt32, etc. to avoid any conflicts.
 ```
+
+### Returned unions
+
+A few unions are returned by Vulkan, and which member is valid depends on another value. In those cases the
+union is embedded in a struct next to a selector field, and Goify() populates **only the selected member**; the others are
+left as zero values. The `As<FieldName>` functions are for building input and do not apply to returned values, you can
+access the data through the applicable named struct (union) member.
+
+The recommended approach is to switch on the selector in the containing struct, described in the Vulkan spec:
+
+```go
+v, _ := vk.GetPerformanceParameterINTEL(device, param)
+switch v.Typ { // type is a Go keyword, so it has been renamed to Typ/typ in go-vk structs
+case vk.PERFORMANCE_VALUE_TYPE_UINT32_INTEL:
+	use(v.Data.Value32)
+case vk.PERFORMANCE_VALUE_TYPE_STRING_INTEL:
+	use(v.Data.ValueString) // C string has been copied into Go memory
+}
+```
+
+Each union also has an `Is<FieldName>()` method that reports which member is active, and its doc comment lists the
+selector value for each member. The returned unions as of 1.4.366 are `VkPerformanceValueDataINTEL` (selected by
+`PerformanceValueINTEL.Typ`), `VkPipelineExecutableStatisticValueKHR` (selected by
+`PipelineExecutableStatisticKHR.Format`), and `VkPerformanceCounterResultKHR`.
+
+`VkPerformanceCounterResultKHR` follows a different pattern: the spec gives no selector for it, because results are read from a
+`void*` buffer via `vkGetQueryPoolResults`. Which member is valid is determined by the `Storage` field of the
+`PerformanceCounterKHR` that describes the counter, which **you** must keep track of. Use
+`PerformanceCounterResultKHRFromBytes(buf, storage)` to interpret each element of the result buffer.
 
 ## Examples
 
@@ -283,6 +332,8 @@ this library. The samples currently run on Windows and Mac.
 
 * VkAccelerationStructureMatrixMotionInstanceNV - embedded bit fields in uint32_t are not handled at all...this
   structure will not behave as intended and will likely cause a crash if used.
-* H.264 and H.265 commands and types are almost certainly broken. Vulkan does provide a separate XML file in the vk.xml format for those
+* Video commands and types (H.264, H.265, AV1, VP9) are almost certainly broken. Vulkan does provide a separate XML file in the vk.xml format for those
   types, but reading that file has not yet been implemented in vk-gen. As a placeholder, all of these types are defined
   as int32 through exceptions.json.
+* Returned unions are supported only when every member is a primitive, bool, or string, and the union is selected by a
+  sibling field (or an entry in vk-gen's exceptions.json). Unions with structs, arrays, or non-string pointer members (which don't exist as of 1.4.366) will not be Goified.
