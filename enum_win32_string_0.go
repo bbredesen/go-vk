@@ -19,8 +19,9 @@ const _FullScreenExclusiveEXT_name = "FULL_SCREEN_EXCLUSIVE_DEFAULT_EXTFULL_SCRE
 var _FullScreenExclusiveEXT_index = [...]uint8{0, 33, 66, 102, 150}
 
 func (i FullScreenExclusiveEXT) String() string {
-	if i < 0 || i >= FullScreenExclusiveEXT(len(_FullScreenExclusiveEXT_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_FullScreenExclusiveEXT_index)-1 {
 		return "FullScreenExclusiveEXT(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _FullScreenExclusiveEXT_name[_FullScreenExclusiveEXT_index[i]:_FullScreenExclusiveEXT_index[i+1]]
+	return _FullScreenExclusiveEXT_name[_FullScreenExclusiveEXT_index[idx]:_FullScreenExclusiveEXT_index[idx+1]]
 }
